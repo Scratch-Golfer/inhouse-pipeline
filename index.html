@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scratch Golf — In-House Pipeline</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f7f6f3;--surface:#ffffff;--border:#e8e7e2;--border2:#d0cfc9;
+  --text:#1a1a18;--text2:#6b6a65;--text3:#9b9a95;
+  --green:#3B6D11;--green-bg:#f0f7e8;--green-mid:#639922;
+  --amber:#854F0B;--amber-bg:#fef3e2;
+  --red:#A32D2D;--red-bg:#fdf0ee;
+  --blue:#185FA5;--blue-bg:#e6f1fb;
+  --score-hi-bg:#e8f5d6;--score-hi:#2d5a0a;
+  --score-mid-bg:#fef3e2;--score-mid:#7a4a08;
+  --score-lo-bg:#fceaea;--score-lo:#8b2020;
+  --radius:8px;--radius-lg:12px;
+  --nav-h:44px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Inter','Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* NAV */
+.sitenav{display:flex;align-items:center;gap:0;height:var(--nav-h);background:#1a1a18;flex-shrink:0;padding:0 16px}
+.sitenav-logo{font-family:Georgia,serif;font-style:italic;font-size:17px;color:#fff;margin-right:20px;white-space:nowrap}
+.sitenav a{display:flex;align-items:center;height:var(--nav-h);padding:0 14px;font-size:12px;font-weight:500;color:rgba(255,255,255,.55);text-decoration:none;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap;cursor:pointer}
+.sitenav a:hover{color:rgba(255,255,255,.9)}
+.sitenav a.active{color:#fff;border-bottom-color:#639922}
+.navcount{display:none;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;margin-left:6px;background:#639922;color:#fff;font-size:10px;font-weight:700;border-radius:9px;line-height:1}
+
+/* TOPBAR */
+.topbar{display:flex;align-items:center;gap:12px;padding:0 16px;height:44px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.topbar-title{font-size:13px;font-weight:600}
+.topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+
+/* MAIN */
+.main{display:flex;flex:1;overflow:hidden;min-height:0}
+.table-pane{flex:1;overflow:auto;min-width:0}
+table{width:100%;border-collapse:collapse}
+thead tr{background:var(--surface);border-bottom:1px solid var(--border2);position:sticky;top:0;z-index:2}
+th{padding:6px 8px;text-align:left;font-size:10px;font-weight:600;color:var(--text3);letter-spacing:.05em;white-space:nowrap}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s;cursor:pointer}
+tbody tr:hover{background:#fafaf8}
+td{padding:8px 8px;vertical-align:middle}
+td.addr-cell{max-width:220px;white-space:normal;line-height:1.3}
+.a1{font-weight:600;font-size:12px;color:var(--text)}
+.a2{font-size:10px;color:var(--text2)}
+.sp{display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;min-width:30px;height:20px;border-radius:4px;padding:0 4px}
+.sh{background:var(--score-hi-bg);color:var(--score-hi)}
+.sm{background:var(--score-mid-bg);color:var(--score-mid)}
+.sl{background:var(--score-lo-bg);color:var(--score-lo)}
+.sn{background:var(--bg);color:var(--text3);font-size:10px}
+.src-badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;padding:2px 6px;border-radius:4px;white-space:nowrap;font-weight:600}
+.src-badge.onmarket{background:#EAF0F7;color:#2A4D7A}
+.src-badge.manual{background:#F3EFE8;color:#7A5C2A}
+.src-badge.quicksearch{background:#EAF3E4;color:#3B6D11}
+.date-cell{font-size:10px;color:var(--text3);white-space:nowrap}
+.poa{color:var(--text3);font-size:11px}
+.empty{text-align:center;padding:48px 24px;color:var(--text2)}
+
+/* DETAIL SIDEBAR */
+#detail-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.15);z-index:1000}
+#detail-panel{position:fixed;top:0;right:0;bottom:0;width:460px;max-width:92vw;background:var(--surface);box-shadow:-4px 0 24px rgba(0,0,0,.12);z-index:1001;overflow-y:auto;padding:20px}
+#detail-panel .dp-close{position:absolute;top:14px;right:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2)}
+#detail-panel h2{font-size:16px;margin-bottom:2px;padding-right:30px}
+#detail-panel .dp-sub{font-size:12px;color:var(--text2);margin-bottom:16px}
+.dp-section{margin-top:18px;padding-top:14px;border-top:1px solid var(--border)}
+.dp-section-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px}
+.dp-info-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.dp-info-grid div div:first-child{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px}
+.dp-info-grid div div:last-child{font-weight:600;font-size:12.5px}
+.dp-field{margin-bottom:10px}
+.dp-field label{display:block;font-size:11px;color:var(--text2);margin-bottom:3px;font-weight:600}
+.dp-field input[type=text],.dp-field textarea{width:100%;padding:6px 8px;border:1px solid var(--border2);border-radius:6px;font-size:12.5px;font-family:inherit;background:#fff}
+.dp-field textarea{min-height:56px;resize:vertical}
+.dp-row-inline{display:flex;gap:6px;align-items:center}
+.dp-btn{font-size:11.5px;padding:5px 12px;border-radius:6px;border:1px solid var(--border2);background:#fff;cursor:pointer;font-weight:500;white-space:nowrap}
+.dp-btn:hover{background:var(--bg)}
+.dp-btn.primary{background:var(--green);color:#fff;border-color:var(--green)}
+.dp-btn.primary:hover{background:#2d5a0a}
+.dp-btn.danger{background:var(--red-bg);color:var(--red);border-color:#f0c0c0}
+.dp-btn.danger:hover{background:#fadede}
+.dp-btn.ghost{background:transparent;color:var(--text2)}
+.dp-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.dp-doc-item{display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--bg);border-radius:6px;margin-bottom:6px;font-size:12px}
+.dp-doc-item a{color:var(--green);font-weight:600;text-decoration:none}
+.log-item{padding:8px;background:var(--bg);border-radius:6px;margin-bottom:6px}
+.log-item .log-meta{font-size:10px;color:var(--text3);margin-bottom:3px}
+.log-item .log-text{font-size:12.5px;white-space:pre-wrap}
+.file-input-label{display:inline-block;font-size:11.5px;padding:6px 12px;border:1px dashed var(--border2);border-radius:6px;cursor:pointer;color:var(--text2);background:#fff;margin-bottom:8px}
+.file-input-label:hover{background:var(--bg)}
+
+/* SUMMARY / QUICK SEARCH OVERLAYS */
+#overlay-home,#overlay-qs{display:none;position:fixed;top:44px;left:0;right:0;bottom:0;background:var(--bg);z-index:900;overflow-y:auto;padding:28px}
+.summary-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;max-width:1200px;margin:0 auto}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:18px;cursor:pointer;transition:box-shadow .15s}
+.summary-card:hover{box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.summary-card .sc-count{font-size:32px;font-weight:700}
+.summary-card .sc-label{font-size:12px;color:var(--text2);margin-top:2px;font-weight:600}
+.summary-card ul{margin-top:12px;list-style:none}
+.summary-card li{font-size:11.5px;padding:4px 0;border-top:1px solid var(--border);color:var(--text2)}
+.summary-card li:first-child{border-top:none}
+.qs-wrap{max-width:640px;margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:28px}
+.qs-wrap h2{font-size:16px;margin-bottom:4px}
+.qs-wrap p.hint{font-size:12px;color:var(--text2);margin-bottom:20px}
+.qs-field{margin-bottom:14px}
+.qs-field label{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+.qs-field input[type=text]{width:100%;padding:8px 10px;border:1px solid var(--border2);border-radius:6px;font-size:13px}
+#qs-score-result{display:none;margin-top:6px;padding:10px;background:var(--green-bg);border-radius:6px;font-size:12.5px}
+
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;font-size:12px;padding:7px 16px;border-radius:var(--radius);opacity:0;transition:opacity .2s;pointer-events:none;z-index:9999;white-space:nowrap}
+#toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<nav class="sitenav">
+  <div class="sitenav-logo">Scratch</div>
+  <a data-view="home" onclick="switchStageView('home')" class="active">Summary</a>
+  <a data-view="qs" onclick="switchStageView('qs')">Quick Search</a>
+  <a data-view="viewing" onclick="switchStageView('viewing')">Viewing<span class="navcount" id="nc-viewing"></span></a>
+  <a data-view="progressing" onclick="switchStageView('progressing')">Progressing<span class="navcount" id="nc-progressing"></span></a>
+  <a data-view="hots_agreed" onclick="switchStageView('hots_agreed')">HOTs Agreed<span class="navcount" id="nc-hots_agreed"></span></a>
+  <a data-view="lease_agreed" onclick="switchStageView('lease_agreed')">Lease Agreed<span class="navcount" id="nc-lease_agreed"></span></a>
+  <a data-view="rejected" onclick="switchStageView('rejected')">Rejected<span class="navcount" id="nc-rejected"></span></a>
+  <a data-view="archived" onclick="switchStageView('archived')">Archived<span class="navcount" id="nc-archived"></span></a>
+</nav>
+
+<!-- SUMMARY -->
+<div id="overlay-home">
+  <div class="summary-grid" id="summary-grid"></div>
+</div>
+
+<!-- QUICK SEARCH -->
+<div id="overlay-qs">
+  <div class="qs-wrap">
+    <h2>Quick Search</h2>
+    <p class="hint">Log a site an agent has sent you or one you've found yourself. Score it, optionally attach a floorplan, then send it straight to Viewing or park it in Archived.</p>
+    <div class="qs-field">
+      <label>Address</label>
+      <input type="text" id="qs-address" placeholder="e.g. 12 High Street, Clapham, London SW4 7AA">
+    </div>
+    <div class="qs-row" style="display:flex;gap:8px;margin-bottom:14px">
+      <button class="dp-btn" onclick="qsRunScore()">Run macro score</button>
+    </div>
+    <div id="qs-score-result"></div>
+    <div class="qs-field" style="margin-top:14px">
+      <label>Notes</label>
+      <textarea id="qs-notes" style="width:100%;min-height:56px;padding:8px;border:1px solid var(--border2);border-radius:6px;font-family:inherit;font-size:12.5px"></textarea>
+    </div>
+    <div class="qs-field">
+      <label>Floorplan (optional)</label>
+      <input type="file" id="qs-floorplan-input" onchange="qsHandleFloorplanUpload(this)">
+      <div id="qs-floorplan-name" style="font-size:11.5px;color:var(--text2);margin-top:4px"></div>
+    </div>
+    <div class="dp-actions" style="margin-top:20px">
+      <button class="dp-btn primary" onclick="qsSubmit('viewing')">→ Add to Viewing</button>
+      <button class="dp-btn" onclick="qsSubmit('archived')">Add to Archived</button>
+    </div>
+  </div>
+</div>
+
+<!-- STAGE TABLE VIEW -->
+<div id="overlay-stage" style="display:none;flex-direction:column;flex:1;overflow:hidden">
+  <div class="topbar">
+    <div class="topbar-title" id="stage-title">Viewing</div>
+    <div class="topbar-right">
+      <span style="font-size:11.5px;color:var(--text2)" id="stage-count-label"></span>
+    </div>
+  </div>
+  <div class="main">
+    <div class="table-pane">
+      <table id="stage-table">
+        <thead>
+          <tr>
+            <th>Address</th>
+            <th>Source</th>
+            <th>Agent</th>
+            <th>Size</th>
+            <th>Rent p.a.</th>
+            <th>Score</th>
+            <th>Added</th>
+          </tr>
+        </thead>
+        <tbody id="stage-tbody"></tbody>
+      </table>
+      <div id="stage-empty" class="empty" style="display:none">Nothing here yet.</div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL SIDEBAR -->
+<div id="detail-overlay" onclick="closeDetail()"></div>
+<div id="detail-panel"></div>
+
+<div id="toast"></div>
+
+<script>
+var SUPABASE_URL='https://mfhcqxquzjknzifjebvu.supabase.co';
+var SUPABASE_ANON_KEY='sb_publishable_HYuBeJEs2OuKiIUOym5Fbw_55TfnxAH';
+var db=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+var sites=[];
+var curTab='viewing';
+var qsFloorplanFile=null;
+var qsScoreResult=null;
+
+var STAGE_LABELS={viewing:'Viewing',progressing:'Progressing',hots_agreed:'HOTs Agreed',lease_agreed:'Lease Agreed',rejected:'Rejected',archived:'Archived'};
+var SOURCE_LABELS={on_market:'On-Market',manual:'Manual',quick_search:'Quick Search'};
+
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer=setTimeout(function(){t.classList.remove('show');},2600);
+}
+
+function scoreClass(v){
+  if(v==null)return 'sn';
+  var n=Number(v);
+  if(n>=4)return 'sh';
+  if(n>=3)return 'sm';
+  return 'sl';
+}
+
+async function loadSites(){
+  var res=await db.from('inhouse_sites').select('*').order('created_at',{ascending:false});
+  if(res.error){toast('Load error: '+res.error.message);return;}
+  sites=(res.data||[]).map(function(r){
+    return {
+      id:r.id,
+      addr:r.address||'',
+      rent:r.rent,
+      size:r.sqft,
+      agent:r.agency_name||'',
+      agent_phone:r.agent_phone||'',
+      url:r.listing_url||'',
+      notes:r.notes||'',
+      source:r.source||'manual',
+      source_listing_id:r.source_listing_id||null,
+      macro:r.macro_score_v2,
+      micro:r.micro_score_v2,
+      macro_reasoning:r.macro_score_v2_reasoning||'',
+      micro_reasoning:r.micro_score_v2_reasoning||'',
+      combined:(r.macro_score_v2!=null&&r.micro_score_v2!=null)?(r.macro_score_v2*0.6+r.micro_score_v2*0.4):(r.macro_score_v2!=null?r.macro_score_v2:r.micro_score_v2),
+      floorplan_url:r.floorplan_url||'',
+      status:r.status||'viewing',
+      rejection_reason:r.rejection_reason||'',
+      viewing_date:r.viewing_date||'',
+      viewing_notes:r.viewing_notes||'',
+      activity_log:Array.isArray(r.activity_log)?r.activity_log:[],
+      water_supply:r.water_supply||'',
+      water_drainage:r.water_drainage||'',
+      electrical_supply:r.electrical_supply||'',
+      hots_documents:Array.isArray(r.hots_documents)?r.hots_documents:[],
+      lease_documents:Array.isArray(r.lease_documents)?r.lease_documents:[],
+      created_at:r.created_at
+    };
+  });
+  updateCounts();
+  if(document.getElementById('overlay-home').style.display!=='none')renderSummary();
+  if(document.getElementById('overlay-stage').style.display!=='none')renderStageTable();
+}
+
+function updateCounts(){
+  ['viewing','progressing','hots_agreed','lease_agreed','rejected','archived'].forEach(function(s){
+    var n=sites.filter(function(x){return x.status===s;}).length;
+    var el=document.getElementById('nc-'+s);
+    if(n>0){el.textContent=n;el.style.display='inline-flex';}else{el.style.display='none';}
+  });
+}
+
+function switchStageView(view){
+  document.querySelectorAll('.sitenav a').forEach(function(a){a.classList.toggle('active',a.dataset.view===view);});
+  document.getElementById('overlay-home').style.display=view==='home'?'block':'none';
+  document.getElementById('overlay-qs').style.display=view==='qs'?'block':'none';
+  document.getElementById('overlay-stage').style.display=(view!=='home'&&view!=='qs')?'flex':'none';
+  if(view==='home')renderSummary();
+  if(view!=='home'&&view!=='qs'){
+    curTab=view;
+    document.getElementById('stage-title').textContent=STAGE_LABELS[view]||view;
+    renderStageTable();
+  }
+}
+
+function renderSummary(){
+  var grid=document.getElementById('summary-grid');
+  var order=['viewing','progressing','hots_agreed','lease_agreed','rejected','archived'];
+  grid.innerHTML=order.map(function(s){
+    var items=sites.filter(function(x){return x.status===s;});
+    var preview=items.slice(0,5).map(function(x){return '<li>'+(x.addr||'—').replace(/</g,'&lt;')+'</li>';}).join('');
+    return '<div class="summary-card" onclick="switchStageView(\''+s+'\')">'
+      +'<div class="sc-count">'+items.length+'</div>'
+      +'<div class="sc-label">'+STAGE_LABELS[s]+'</div>'
+      +'<ul>'+(preview||'<li style="color:#bbb">No items</li>')+'</ul>'
+      +'</div>';
+  }).join('');
+}
+
+function filtered(){
+  return sites.filter(function(x){return x.status===curTab;});
+}
+
+function renderStageTable(){
+  var fl=filtered();
+  document.getElementById('stage-count-label').textContent=fl.length+' item'+(fl.length===1?'':'s');
+  var tbody=document.getElementById('stage-tbody');
+  document.getElementById('stage-empty').style.display=fl.length?'none':'block';
+  tbody.innerHTML=fl.map(function(l){
+    var srcClass=l.source==='on_market'?'onmarket':l.source==='quick_search'?'quicksearch':'manual';
+    return '<tr onclick="showDetail(\''+l.id+'\')">'
+      +'<td class="addr-cell"><div class="a1">'+(l.addr||'—').replace(/</g,'&lt;')+'</div></td>'
+      +'<td><span class="src-badge '+srcClass+'">'+(SOURCE_LABELS[l.source]||l.source)+'</span></td>'
+      +'<td><div class="a2">'+(l.agent||'—').replace(/</g,'&lt;')+'</div></td>'
+      +'<td>'+(l.size?l.size+' sqft':'<span class="poa">—</span>')+'</td>'
+      +'<td>'+(l.rent?'£'+Number(l.rent).toLocaleString():'<span class="poa">—</span>')+'</td>'
+      +'<td>'+(l.combined!=null?'<span class="sp '+scoreClass(l.combined)+'">'+Number(l.combined).toFixed(1)+'</span>':'<span class="sp sn">—</span>')+'</td>'
+      +'<td class="date-cell">'+(l.created_at?new Date(l.created_at).toLocaleDateString('en-GB',{day:'numeric',month:'short'}):'—')+'</td>'
+      +'</tr>';
+  }).join('');
+}
+
+// ───────── DETAIL PANEL ─────────
+function closeDetail(){
+  document.getElementById('detail-overlay').style.display='none';
+  document.getElementById('detail-panel').style.display='none';
+}
+
+function showDetail(id){
+  var l=sites.find(function(x){return x.id===id;});
+  if(!l)return;
+  document.getElementById('detail-overlay').style.display='block';
+  var p=document.getElementById('detail-panel');
+  p.style.display='block';
+
+  var html='<button class="dp-close" onclick="closeDetail()">✕</button>';
+  html+='<h2>'+(l.addr||'—').replace(/</g,'&lt;')+'</h2>';
+  html+='<div class="dp-sub">'+STAGE_LABELS[l.status]+' · <span class="src-badge '+(l.source==='on_market'?'onmarket':l.source==='quick_search'?'quicksearch':'manual')+'">'+(SOURCE_LABELS[l.source]||l.source)+'</span></div>';
+
+  html+='<div class="dp-info-grid">';
+  html+=infoRow('Size',l.size?l.size+' sqft':'—');
+  html+=infoRow('Rent p.a.',l.rent?'£'+Number(l.rent).toLocaleString():'—');
+  html+=infoRow('Agent',l.agent||'—');
+  html+=infoRow('Agent phone',l.agent_phone||'—');
+  html+=infoRow('Score',l.combined!=null?Number(l.combined).toFixed(1)+' / 5':'—');
+  html+=infoRow('Listing',l.url?'<a href="'+l.url+'" target="_blank" style="color:var(--green)">View ↗</a>':'—');
+  html+='</div>';
+
+  if(l.notes){
+    html+='<div class="dp-section"><div class="dp-section-title">Notes</div><div style="font-size:12.5px">'+l.notes.replace(/</g,'&lt;')+'</div></div>';
+  }
+
+  if(l.floorplan_url){
+    html+='<div class="dp-section"><div class="dp-section-title">Floorplan</div><a href="'+l.floorplan_url+'" target="_blank" style="color:var(--green);font-weight:600;font-size:12.5px">View floorplan ↗</a></div>';
+  }
+
+  // Stage-specific sections
+  if(l.status==='viewing'){
+    html+=buildViewingBlock(l);
+  }
+  if(l.status==='progressing'||l.status==='hots_agreed'||l.status==='lease_agreed'){
+    html+=buildActivityLogBlock(l);
+  }
+  if(l.status==='hots_agreed'||l.status==='lease_agreed'){
+    html+=buildUtilitiesBlock(l);
+    html+=buildDocsBlock(l,'hots_documents','HOTs Agreed documents & images');
+  }
+  if(l.status==='lease_agreed'){
+    html+=buildDocsBlock(l,'lease_documents','Lease documents');
+  }
+  if(l.status==='rejected'&&l.rejection_reason){
+    html+='<div class="dp-section"><div class="dp-section-title">Rejection reason</div><div style="font-size:12.5px">'+l.rejection_reason.replace(/</g,'&lt;')+'</div></div>';
+  }
+
+  html+=buildActionButtons(l);
+
+  p.innerHTML=html;
+  wireDetailHandlers(l);
+}
+
+function infoRow(label,val){
+  return '<div><div>'+label+'</div><div>'+val+'</div></div>';
+}
+
+function buildViewingBlock(l){
+  return '<div class="dp-section"><div class="dp-section-title">Viewing</div>'
+    +'<div class="dp-field"><label>Viewing date/notes</label>'
+    +'<textarea id="dp-viewing-notes" placeholder="Viewing scheduled for...">'+(l.viewing_notes||'').replace(/</g,'&lt;')+'</textarea></div>'
+    +'<div class="dp-row-inline"><button class="dp-btn" id="dp-save-viewing">Save</button></div>'
+    +'</div>';
+}
+
+function buildActivityLogBlock(l){
+  var logs=(l.activity_log||[]).slice().reverse();
+  var logsHtml=logs.length?logs.map(function(entry){
+    return '<div class="log-item"><div class="log-meta">'+new Date(entry.at).toLocaleString('en-GB')+'</div><div class="log-text">'+(entry.text||'').replace(/</g,'&lt;')+'</div></div>';
+  }).join(''):'<div style="font-size:12px;color:var(--text3)">No comments yet.</div>';
+  return '<div class="dp-section"><div class="dp-section-title">Activity log</div>'
+    +'<div class="dp-field"><textarea id="dp-new-comment" placeholder="Add an update — call notes, negotiation progress, next steps..."></textarea></div>'
+    +'<div class="dp-row-inline" style="margin-bottom:12px"><button class="dp-btn" id="dp-post-comment">Post</button></div>'
+    +logsHtml
+    +'</div>';
+}
+
+function buildUtilitiesBlock(l){
+  return '<div class="dp-section"><div class="dp-section-title">Utilities</div>'
+    +utilField('water_supply','Water supply',l.water_supply)
+    +utilField('water_drainage','Water drainage',l.water_drainage)
+    +utilField('electrical_supply','Electrical supply',l.electrical_supply)
+    +'</div>';
+}
+function utilField(field,label,val){
+  return '<div class="dp-field"><label>'+label+'</label>'
+    +'<div class="dp-row-inline"><input type="text" id="dp-util-'+field+'" value="'+(val||'').replace(/"/g,'&quot;')+'">'
+    +'<button class="dp-btn" data-util-field="'+field+'">Save</button></div></div>';
+}
+
+function buildDocsBlock(l,field,title){
+  var docs=l[field]||[];
+  var docsHtml=docs.length?docs.map(function(d){
+    return '<div class="dp-doc-item"><a href="'+d.url+'" target="_blank">'+(d.name||'File').replace(/</g,'&lt;')+'</a><span style="color:var(--text3);font-size:10px">'+(d.uploaded_at?new Date(d.uploaded_at).toLocaleDateString('en-GB'):'')+'</span></div>';
+  }).join(''):'<div style="font-size:12px;color:var(--text3);margin-bottom:8px">No files uploaded yet.</div>';
+  return '<div class="dp-section"><div class="dp-section-title">'+title+'</div>'
+    +docsHtml
+    +'<label class="file-input-label">+ Upload file<input type="file" style="display:none" data-doc-field="'+field+'" multiple></label>'
+    +'</div>';
+}
+
+function buildActionButtons(l){
+  var buttons='';
+  if(l.status==='viewing'){
+    buttons+='<button class="dp-btn primary" data-action="progressing">→ Progressing</button>';
+    buttons+='<button class="dp-btn danger" data-action="rejected">✗ Reject</button>';
+  } else if(l.status==='progressing'){
+    buttons+='<button class="dp-btn primary" data-action="hots_agreed">→ HOTs Agreed</button>';
+    buttons+='<button class="dp-btn ghost" data-action="viewing">← Back to Viewing</button>';
+    buttons+='<button class="dp-btn danger" data-action="rejected">✗ Reject</button>';
+  } else if(l.status==='hots_agreed'){
+    buttons+='<button class="dp-btn primary" data-action="lease_agreed">→ Lease Agreed</button>';
+    buttons+='<button class="dp-btn ghost" data-action="progressing">← Back to Progressing</button>';
+    buttons+='<button class="dp-btn danger" data-action="rejected">✗ Reject</button>';
+  } else if(l.status==='lease_agreed'){
+    buttons+='<button class="dp-btn ghost" data-action="hots_agreed">← Back to HOTs Agreed</button>';
+  } else if(l.status==='rejected'||l.status==='archived'){
+    buttons+='<button class="dp-btn primary" data-action="viewing">↺ Restore to Viewing</button>';
+  }
+  buttons+='<button class="dp-btn danger" id="dp-delete" style="margin-left:auto">🗑 Delete</button>';
+  return '<div class="dp-actions">'+buttons+'</div>';
+}
+
+function wireDetailHandlers(l){
+  document.querySelectorAll('[data-action]').forEach(function(btn){
+    btn.onclick=function(){
+      var ns=btn.getAttribute('data-action');
+      if(ns==='rejected'){
+        var reason=prompt('Reason for rejecting (optional):','');
+        moveStage(l.id,ns,reason||null);
+      } else {
+        moveStage(l.id,ns,null);
+      }
+    };
+  });
+  var delBtn=document.getElementById('dp-delete');
+  if(delBtn)delBtn.onclick=function(){deleteSite(l.id);};
+
+  var saveViewingBtn=document.getElementById('dp-save-viewing');
+  if(saveViewingBtn)saveViewingBtn.onclick=function(){
+    var val=document.getElementById('dp-viewing-notes').value;
+    db.from('inhouse_sites').update({viewing_notes:val}).eq('id',l.id).then(function(res){
+      if(res.error){toast('Save failed: '+res.error.message);return;}
+      l.viewing_notes=val;toast('Saved');
+    });
+  };
+
+  var postBtn=document.getElementById('dp-post-comment');
+  if(postBtn)postBtn.onclick=function(){addComment(l.id);};
+
+  document.querySelectorAll('[data-util-field]').forEach(function(btn){
+    btn.onclick=function(){
+      var field=btn.getAttribute('data-util-field');
+      var val=document.getElementById('dp-util-'+field).value;
+      var payload={};payload[field]=val;
+      db.from('inhouse_sites').update(payload).eq('id',l.id).then(function(res){
+        if(res.error){toast('Save failed: '+res.error.message);return;}
+        l[field]=val;toast('Saved');
+      });
+    };
+  });
+
+  document.querySelectorAll('[data-doc-field]').forEach(function(input){
+    input.onchange=function(){uploadDocs(l.id,input,input.getAttribute('data-doc-field'));};
+  });
+}
+
+async function moveStage(id,ns,reason){
+  var l=sites.find(function(x){return x.id===id;});
+  if(!l)return;
+  var payload={status:ns,updated_at:new Date().toISOString()};
+  if(reason!==null&&reason!==undefined)payload.rejection_reason=reason;
+  var res=await db.from('inhouse_sites').update(payload).eq('id',id);
+  if(res.error){toast('Move failed: '+res.error.message);return;}
+  l.status=ns;
+  if(reason)l.rejection_reason=reason;
+  toast('→ Moved to '+STAGE_LABELS[ns]);
+  closeDetail();
+  updateCounts();
+  renderStageTable();
+}
+
+async function deleteSite(id){
+  if(!confirm('Delete this site permanently? This cannot be undone.'))return;
+  var res=await db.from('inhouse_sites').delete().eq('id',id);
+  if(res.error){toast('Delete failed: '+res.error.message);return;}
+  sites=sites.filter(function(x){return x.id!==id;});
+  toast('Deleted');
+  closeDetail();
+  updateCounts();
+  renderStageTable();
+  if(document.getElementById('overlay-home').style.display!=='none')renderSummary();
+}
+
+async function addComment(id){
+  var l=sites.find(function(x){return x.id===id;});
+  if(!l)return;
+  var text=document.getElementById('dp-new-comment').value.trim();
+  if(!text)return;
+  var entry={text:text,at:new Date().toISOString()};
+  var newLog=(l.activity_log||[]).concat([entry]);
+  var res=await db.from('inhouse_sites').update({activity_log:newLog}).eq('id',id);
+  if(res.error){toast('Comment failed: '+res.error.message);return;}
+  l.activity_log=newLog;
+  toast('Comment added');
+  showDetail(id);
+}
+
+async function uploadDocs(id,fileInput,field){
+  var l=sites.find(function(x){return x.id===id;});
+  if(!l||!fileInput.files||!fileInput.files.length)return;
+  toast('Uploading…');
+  var newDocs=(l[field]||[]).slice();
+  for(var i=0;i<fileInput.files.length;i++){
+    var file=fileInput.files[i];
+    var path=id+'/'+Date.now()+'_'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+    try{
+      var up=await db.storage.from('inhouse-documents').upload(path,file,{upsert:true});
+      if(up.error){toast('Upload failed: '+up.error.message);continue;}
+      var pub=db.storage.from('inhouse-documents').getPublicUrl(path);
+      newDocs.push({url:pub.data.publicUrl,name:file.name,uploaded_at:new Date().toISOString()});
+    }catch(e){toast('Upload failed: '+e.message);}
+  }
+  var payload={};payload[field]=newDocs;
+  var res=await db.from('inhouse_sites').update(payload).eq('id',id);
+  if(res.error){toast('Save failed: '+res.error.message);return;}
+  l[field]=newDocs;
+  toast('✓ Uploaded');
+  showDetail(id);
+}
+
+// ───────── QUICK SEARCH ─────────
+var _pcCache={};
+async function scoreMacroRemote(pc){
+  var key=pc.trim().toUpperCase().replace(/\s+/g,'');
+  if(_pcCache[key])return _pcCache[key];
+  try{
+    var res=await fetch(SUPABASE_URL+'/functions/v1/score-macro',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},
+      body:JSON.stringify({postcode:pc})
+    });
+    var result=await res.json();
+    if(result.error)return null;
+    _pcCache[key]=result;
+    return result;
+  }catch(e){console.warn('score-macro call failed:',e);return null;}
+}
+
+var FULL_POSTCODE_RE=/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i;
+
+async function qsRunScore(){
+  var addr=document.getElementById('qs-address').value.trim();
+  if(!addr){toast('Enter an address first');return;}
+  var m=addr.match(FULL_POSTCODE_RE);
+  if(!m){toast('Could not find a full postcode in that address (e.g. SW4 7AA)');return;}
+  var resultEl=document.getElementById('qs-score-result');
+  resultEl.style.display='block';
+  resultEl.textContent='Scoring…';
+  var result=await scoreMacroRemote(m[0]);
+  if(!result){resultEl.textContent='Could not score this postcode.';qsScoreResult=null;return;}
+  qsScoreResult=result;
+  resultEl.innerHTML='Macro score: <strong>'+Number(result.score).toFixed(1)+' / 5</strong>';
+}
+
+function qsHandleFloorplanUpload(fileInput){
+  qsFloorplanFile=(fileInput.files&&fileInput.files[0])?fileInput.files[0]:null;
+  document.getElementById('qs-floorplan-name').textContent=qsFloorplanFile?qsFloorplanFile.name:'';
+}
+
+async function qsSubmit(targetStatus){
+  var addr=document.getElementById('qs-address').value.trim();
+  if(!addr){toast('Enter an address first');return;}
+  var notes=document.getElementById('qs-notes').value.trim();
+  var payload={
+    address:addr,
+    notes:notes||null,
+    source:'quick_search',
+    status:targetStatus
+  };
+  if(qsScoreResult){
+    payload.macro_score_v2=Math.round(qsScoreResult.score);
+    payload.macro_score_v2_reasoning=qsScoreResult.reasoning||null;
+    payload.macro_score_data=JSON.stringify(qsScoreResult.data||{});
+  }
+  try{
+    var res=await db.from('inhouse_sites').insert(payload).select();
+    if(res.error)throw new Error(res.error.message);
+    var newId=res.data&&res.data[0]&&res.data[0].id;
+    if(qsFloorplanFile&&newId){
+      var path=newId+'/'+Date.now()+'_'+qsFloorplanFile.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      var up=await db.storage.from('inhouse-documents').upload(path,qsFloorplanFile,{upsert:true});
+      if(!up.error){
+        var pub=db.storage.from('inhouse-documents').getPublicUrl(path);
+        await db.from('inhouse_sites').update({floorplan_url:pub.data.publicUrl}).eq('id',newId);
+      }
+    }
+    toast('✓ Added to '+STAGE_LABELS[targetStatus]);
+    document.getElementById('qs-address').value='';
+    document.getElementById('qs-notes').value='';
+    document.getElementById('qs-floorplan-input').value='';
+    document.getElementById('qs-floorplan-name').textContent='';
+    document.getElementById('qs-score-result').style.display='none';
+    qsFloorplanFile=null;qsScoreResult=null;
+    await loadSites();
+    switchStageView(targetStatus);
+  }catch(e){
+    toast('Error: '+e.message);
+  }
+}
+
+loadSites();
+</script>
+</body>
+</html>
