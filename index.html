@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Scratch Golf — In-House Pipeline</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="macro-scoring.js"></script>
+<script src="micro-scoring.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -113,6 +115,62 @@ td.addr-cell{max-width:220px;white-space:normal;line-height:1.3}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:#fff;font-size:12px;padding:7px 16px;border-radius:var(--radius);opacity:0;transition:opacity .2s;pointer-events:none;z-index:9999;white-space:nowrap}
 #toast.show{opacity:1}
 
+/* Bay planner — copied verbatim from the on-market platform's Quick Search */
+.pl-tb{display:flex;align-items:center;flex-wrap:wrap;gap:5px;padding-bottom:10px;border-bottom:1px solid #eee;margin-bottom:10px;}
+.pb{padding:5px 11px;font-size:12px;font-weight:500;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#fff;color:#1a1a1a;font-family:inherit;white-space:nowrap;}
+.pb:hover{background:#f5f5f2;}
+.pb.ag{background:#3B6D11;color:#EAF3DE;border-color:#3B6D11;}
+.pb.aa{background:#854F0B;color:#FAEEDA;border-color:#854F0B;}
+.pb.ar{background:#A32D2D;color:#FCEBEB;border-color:#A32D2D;}
+.pb.at{background:#E6F1FB;color:#185FA5;border-color:#B5D4F4;}
+.pb.at.sel{background:#185FA5;color:#fff;border-color:#185FA5;}
+.pb:disabled{opacity:.3;cursor:default;}
+.psep{width:1px;height:20px;background:#e5e5e0;margin:0 2px;flex-shrink:0;}
+.pi{font-size:11px;color:#888;font-family:monospace;white-space:nowrap;}
+#qs-ang{width:52px;padding:4px 6px;font-size:12px;font-family:monospace;border:1px solid #ddd;border-radius:6px;background:#fff;color:#1a1a1a;text-align:center;outline:none;}
+#qs-ang:disabled{opacity:.3;}
+.pl-cw{position:relative;background:#f5f5f2;border:1px solid #e8e8e3;border-radius:8px;display:flex;align-items:center;justify-content:center;min-height:300px;overflow:auto;user-select:none;}
+#qs-pl-cv{display:block;cursor:crosshair;}
+.pl-st{display:flex;justify-content:space-between;padding:6px 0 0;font-size:11px;color:#888;font-family:monospace;border-top:1px solid #eee;margin-top:6px;flex-wrap:wrap;gap:4px;}
+#qs-scdlg{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:9999;background:#fff;border:1px solid #ccc;border-radius:10px;padding:20px;min-width:260px;box-shadow:0 8px 32px rgba(0,0,0,.2);}
+#qs-scdlg h3{font-size:14px;font-weight:600;margin-bottom:6px;}
+#qs-scdlg p{font-size:12px;color:#666;margin-bottom:12px;}
+#qs-scinp{display:block;width:100%;margin-bottom:12px;text-align:center;font-size:20px;padding:8px;border:1px solid #ddd;border-radius:6px;font-family:monospace;outline:none;}
+#qs-scinp:focus{border-color:#3B6D11;}
+.scbtns{display:flex;gap:8px;}
+.scok{flex:1;padding:8px;font-size:13px;font-weight:600;background:#3B6D11;color:#fff;border:none;border-radius:6px;cursor:pointer;font-family:inherit;}
+.sccx{flex:1;padding:8px;font-size:13px;background:#fff;border:1px solid #ddd;border-radius:6px;cursor:pointer;font-family:inherit;}
+.bay-summary{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;}
+.bay-chip{border-radius:6px;padding:5px 10px;font-weight:600;font-size:12px;}
+.bay-chip.green{background:#f0f7e8;border:1px solid #c7e5a3;color:#3B6D11;}
+.bay-chip.blue{background:#E6F1FB;border:1px solid #B5D4F4;color:#185FA5;}
+
+/* Score breakdown table — same format as the standalone macro/micro score tools */
+.bk-card{background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-top:12px}
+.bk-header{display:grid;grid-template-columns:2fr 70px 70px 60px 60px 80px;padding:7px 12px;background:var(--bg);border-bottom:1px solid var(--border);font-size:9.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3)}
+.bk-row{display:grid;grid-template-columns:2fr 70px 70px 60px 60px 80px;padding:8px 12px;border-bottom:1px solid var(--border);align-items:center}
+.bk-row:last-child{border-bottom:none}
+.bk-row.total-row{background:var(--bg);font-weight:600;border-top:2px solid var(--border2)}
+.bk-signal{font-size:12px;font-weight:600}
+.bk-sub{font-size:9.5px;color:var(--text3);margin-top:1px}
+.bk-num{font-size:12px;text-align:right}
+.bk-ratio{font-size:10.5px;font-weight:600;text-align:right;padding:2px 5px;border-radius:3px}
+.r-hi{background:#E5F3D0;color:#2A6010}
+.r-ok{background:#EAF4E0;color:#3A7020}
+.r-mid{background:var(--amber-bg);color:#9A5E00}
+.r-low{background:var(--red-bg);color:var(--red)}
+.r-bad{background:#FADEDC;color:#8B1A1A}
+.bk-sig{font-size:11.5px;text-align:right;color:var(--text2)}
+.bk-weight{font-size:11.5px;text-align:right;color:var(--text2)}
+.bk-contrib{font-size:11.5px;font-weight:700;text-align:right}
+.contrib-pos{color:var(--green)}
+.contrib-mid{color:var(--amber)}
+.contrib-low{color:var(--red)}
+.score-eq{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-top:10px;font-size:11.5px;color:var(--text2);line-height:1.7}
+.score-eq strong{color:var(--text)}
+.score-eq .eq-result{color:var(--green);font-size:13px;font-weight:700}
+.qs-mode-toggle{display:flex;gap:6px;margin-bottom:16px}
+
 #add-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:1100}
 #add-modal{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1101;background:var(--surface);border-radius:var(--radius-lg);padding:24px;width:460px;max-width:92vw;max-height:88vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,.2)}
 #add-modal .dp-close{position:absolute;top:14px;right:14px;background:none;border:none;font-size:18px;cursor:pointer;color:var(--text2)}
@@ -140,27 +198,101 @@ td.addr-cell{max-width:220px;white-space:normal;line-height:1.3}
 
 <!-- QUICK SEARCH -->
 <div id="overlay-qs">
-  <div class="qs-wrap">
-    <h2>Quick Search</h2>
-    <p class="hint">Log a site an agent has sent you or one you've found yourself. Score it, optionally attach a floorplan, then send it straight to Viewing or park it in Archived.</p>
-    <div class="qs-field">
-      <label>Address</label>
-      <input type="text" id="qs-address" placeholder="e.g. 12 High Street, Clapham, London SW4 7AA">
+  <div style="max-width:1400px;margin:0 auto">
+    <h2 style="font-size:16px;margin:0 0 4px">Quick Search</h2>
+    <div class="hint" style="color:var(--text2);font-size:12.5px;margin-bottom:16px">Log a site an agent has sent you or one you've found yourself — score it, mock up a floorplan, then send it to Viewing or park it in Archived.</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:16px">
+      <input type="text" id="qs-addr-input" placeholder="Postcode or address, e.g. SW4 7AA" style="flex:1;max-width:420px;padding:9px 12px;font-size:13px;border:1px solid #d8d6cf;border-radius:8px;font-family:inherit">
+      <button class="pb ag" id="qs-mode-score" onclick="qsSetMode('score')">Score</button>
+      <button class="pb" id="qs-mode-floorplan" onclick="qsSetMode('floorplan')">Floorplan</button>
     </div>
-    <div class="qs-row" style="display:flex;gap:8px;margin-bottom:14px">
-      <button class="dp-btn" onclick="qsRunScore()">Run macro score</button>
+
+    <div id="qs-score-panel">
+      <button onclick="runQuickSearchScore()" id="qs-score-btn" class="dp-btn primary" style="margin-bottom:16px">Search</button>
+      <div id="qs-score-err" style="display:none;color:var(--red);font-size:12.5px;margin-bottom:12px"></div>
+      <div id="qs-score-result" style="display:none">
+        <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+          <div style="display:flex;gap:16px">
+            <div style="text-align:center"><div class="sn" id="qs-macro-bubble" style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700"></div><div style="font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:.04em">Macro</div></div>
+            <div style="text-align:center"><div class="sn" id="qs-micro-bubble" style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700"></div><div style="font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:.04em">Micro</div></div>
+            <div style="text-align:center"><div id="qs-combined-bubble" style="width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;background:#1C3A0E;color:#fff"></div><div style="font-size:10px;color:#999;margin-top:4px;text-transform:uppercase;letter-spacing:.04em">Combined</div></div>
+          </div>
+          <div style="flex:1;min-width:260px;font-size:12.5px;color:#444;line-height:1.5">
+            <div id="qs-macro-reasoning" style="margin-bottom:6px"></div>
+            <div id="qs-micro-reasoning"></div>
+          </div>
+        </div>
+        <div id="qs-macro-breakdown-wrap" style="display:none">
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-top:18px;margin-bottom:2px">Macro breakdown — signal ÷ benchmark</div>
+          <div class="bk-card" id="qs-macro-breakdown"></div>
+          <div class="score-eq" id="qs-macro-eq"></div>
+        </div>
+        <div id="qs-micro-breakdown-wrap" style="display:none">
+          <div style="font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);margin-top:18px;margin-bottom:2px">Micro breakdown — footfall &amp; street character</div>
+          <div class="bk-card" id="qs-micro-breakdown"></div>
+          <div class="score-eq" id="qs-micro-eq"></div>
+        </div>
+      </div>
     </div>
-    <div id="qs-score-result"></div>
-    <div class="qs-field" style="margin-top:14px">
-      <label>Notes</label>
+
+    <div id="qs-floorplan-panel" style="display:none;max-width:1400px">
+      <div style="margin-bottom:10px;display:flex;align-items:center;gap:10px">
+        <label class="pb" style="cursor:pointer" for="qs-floorplan-file">📄 Upload floorplan</label>
+        <input type="file" id="qs-floorplan-file" accept="image/*,application/pdf" style="display:none" onchange="qsHandleFloorplanUpload(this)">
+        <span id="qs-floorplan-filename" style="font-size:11.5px;color:#999"></span>
+      </div>
+      <div class="pl-tb">
+        <button class="pb aa" id="qs-pb-cal">Set scale</button>
+        <span class="pi" id="qs-pb-slbl">no scale</span>
+        <div class="psep"></div>
+        <button class="pb ag" id="qs-pb-place">Place bay</button>
+        <button class="pb at" id="qs-pb-toilet">+ Toilet</button>
+        <button class="pb" id="qs-pb-flip" disabled>Flip</button>
+        <button class="pb" id="qs-pb-rst" disabled>Reset rotation</button>
+        <button class="pb ar" id="qs-pb-del" disabled>Delete</button>
+        <div class="psep"></div>
+        <span class="pi">angle</span><input type="number" id="qs-ang" step="1" placeholder="0" disabled><span class="pi">deg</span>
+        <div class="psep"></div>
+        <button class="pb" id="qs-pb-ori">New: portrait</button>
+        <button class="pb" id="qs-pb-undo">Undo</button>
+        <button class="pb" id="qs-pb-clear">Clear all</button>
+        <div class="psep"></div>
+        <button class="pb" id="qs-pb-zout">− Zoom</button>
+        <span class="pi" id="qs-zlbl">100%</span>
+        <button class="pb" id="qs-pb-zin">+ Zoom</button>
+        <button class="pb" id="qs-pb-zrst">Reset zoom</button>
+        <div class="psep"></div>
+        <span class="pi" id="qs-pb-blbl">0 bays</span>
+      </div>
+      <div class="pl-cw" id="qs-pl-cw">
+        <canvas id="qs-pl-cv" width="1000" height="700"></canvas>
+        <div id="qs-scdlg">
+          <h3>Set scale</h3>
+          <p>Real-world distance between the two points (metres)?</p>
+          <input type="number" id="qs-scinp" min="0.1" step="0.1" placeholder="e.g. 10">
+          <div class="scbtns"><button class="scok" id="qs-sc-ok">Confirm</button><button class="sccx" id="qs-sc-cx">Cancel</button></div>
+        </div>
+      </div>
+      <div class="pl-st"><span id="qs-pl-stl">No floorplan image needed — set a scale against the blank grid, then place bays.</span><span>drag handle to rotate · shift = snap 5°</span></div>
+      <div class="bay-summary" id="qs-bay-summary" style="display:none"></div>
+      <div style="margin-top:12px;display:flex;align-items:center;gap:8px">
+        <label style="font-size:12px;color:#6b6a65">Expected rent (£ p.a., optional)</label>
+        <input type="number" id="qs-rent-input" placeholder="e.g. 45000" style="width:120px;padding:6px 8px;font-size:12.5px;border:1px solid #d8d6cf;border-radius:6px" oninput="qsUpdateCPB()">
+      </div>
+      <div id="qs-cost-wrap" style="margin-top:12px;background:#fff;border:1px solid #e8e7e2;border-radius:10px;padding:14px 16px;display:none">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#888">Cost per bay</div>
+        <div id="qs-cpb" style="font-size:22px;font-weight:700;color:#1a1a18"></div>
+        <div id="qs-cpb-sub" style="font-size:11.5px;color:#999;margin-top:2px"></div>
+      </div>
+    </div>
+
+    <div class="qs-field" style="margin-top:20px;max-width:640px">
+      <label style="font-size:12px;font-weight:600;display:block;margin-bottom:4px">Notes</label>
       <textarea id="qs-notes" style="width:100%;min-height:56px;padding:8px;border:1px solid var(--border2);border-radius:6px;font-family:inherit;font-size:12.5px"></textarea>
     </div>
-    <div class="qs-field">
-      <label>Floorplan (optional)</label>
-      <input type="file" id="qs-floorplan-input" onchange="qsHandleFloorplanUpload(this)">
-      <div id="qs-floorplan-name" style="font-size:11.5px;color:var(--text2);margin-top:4px"></div>
-    </div>
-    <div class="dp-actions" style="margin-top:20px">
+
+    <div class="dp-actions" style="margin-top:16px">
       <button class="dp-btn primary" onclick="qsSubmit('viewing')">→ Add to Viewing</button>
       <button class="dp-btn" onclick="qsSubmit('archived')">Add to Archived</button>
     </div>
@@ -307,6 +439,7 @@ function switchStageView(view){
   document.getElementById('overlay-qs').style.display=view==='qs'?'block':'none';
   document.getElementById('overlay-stage').style.display=(view!=='home'&&view!=='qs')?'flex':'none';
   if(view==='home')renderSummary();
+  if(view==='qs')initQuickSearch();
   if(view!=='home'&&view!=='qs'){
     curTab=view;
     document.getElementById('stage-title').textContent=STAGE_LABELS[view]||view;
@@ -588,58 +721,525 @@ async function uploadDocs(id,fileInput,field){
 }
 
 // ───────── QUICK SEARCH ─────────
-var _pcCache={};
-async function scoreMacroRemote(pc){
-  var key=pc.trim().toUpperCase().replace(/\s+/g,'');
-  if(_pcCache[key])return _pcCache[key];
+// Score mode reuses the exact same scoring functions as the on-market platform
+// (scoreOne/scoreMicroOne), run against a plain in-memory object with no _dbId — both
+// guard every DB write behind `if(l._dbId)`, so nothing gets persisted until a
+// "Add to Viewing/Archived" button is clicked.
+var GK='AIzaSyD7t9mpKJpMACotkzGWJ3kTsjX_81R-E-g';
+var EDGE_FN=SUPABASE_URL+'/functions/v1/hyper-worker';
+var S3_BW=5.0,S3_BD=6.5;   // bay metres
+var S3_TW=2.3,S3_TD=1.6;   // toilet metres
+
+var qsMode='score',qsLastListing=null;
+
+function qsSetMode(m){
+  qsMode=m;
+  document.getElementById('qs-mode-score').className='pb'+(m==='score'?' ag':'');
+  document.getElementById('qs-mode-floorplan').className='pb'+(m==='floorplan'?' ag':'');
+  document.getElementById('qs-score-panel').style.display=m==='score'?'block':'none';
+  document.getElementById('qs-floorplan-panel').style.display=m==='floorplan'?'block':'none';
+}
+
+function qsSc5(v){return v>=4?'sh':v>=3?'sm':'sl';}
+
+// ───── MACRO/MICRO SCORING (identical logic to the on-market platform) ─────
+async function scoreOne(l){
+  var pc=l.postcode;
+  var isFullPc=pc&&/^[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}$/i.test(pc.trim());
+  if(!isFullPc){
+    try{
+      var geoR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent((l.fullAddr||l.addr||'')+(l.area?', '+l.area:'')+', UK')+'&region=gb&key='+GK);
+      var geoD=await geoR.json();
+      if(geoD.status==='OK'&&geoD.results.length){
+        var res=geoD.results[0];
+        var lat=res.geometry.location.lat;
+        var lng=res.geometry.location.lng;
+        l.lat=lat;l.lng=lng;
+        res.address_components.forEach(function(c){
+          if(c.types.includes('postal_code'))pc=c.long_name;
+        });
+        var pcIsFull=pc&&/^[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}$/i.test(pc.trim());
+        if(!pcIsFull){
+          var revR=await fetch('https://maps.googleapis.com/maps/api/geocode/json?latlng='+lat+','+lng+'&result_type=postal_code&key='+GK);
+          var revD=await revR.json();
+          if(revD.status==='OK'&&revD.results.length){
+            revD.results[0].address_components.forEach(function(c){
+              if(c.types.includes('postal_code'))pc=c.long_name;
+            });
+          }
+        }
+      }
+    }catch(e){console.warn('Geocode failed for',l.addr,e);}
+  }
+  if(!pc||pc.length<5){
+    l.macro_reasoning='Could not determine postcode';
+    return false;
+  }
+  l.postcode=pc;
+
+  var result=await scoreMacroRemote(pc);
+  if(!result){
+    l.macro_reasoning='Postcode not found in Homedata';
+    return false;
+  }
+  var d=result.data;
+  var macroScore=result.score;
+  var rsn=result.reasoning;
+
+  l.macro=macroScore;
+  l.macro_reasoning=rsn;
+  l.macro_data=JSON.stringify(d);
+  l.combined=macroScore;
+
+  if(l.micro==null){
+    try{await scoreMicroOne(l);}catch(e){console.warn('Micro score failed for',l.addr,e);}
+  }
+  return true;
+}
+
+async function scoreMicroOne(l){
+  var lat=l.lat,lng=l.lng,fmt=l.fullAddr||l.addr;
+  if(!lat||!lng){
+    var gr=await fetch('https://maps.googleapis.com/maps/api/geocode/json?address='+encodeURIComponent(fmt)+'&region=gb&key='+GK);
+    var gd=await gr.json();
+    if(gd.status!=='OK'||!gd.results.length)throw new Error('Address not found for micro score');
+    lat=gd.results[0].geometry.location.lat;lng=gd.results[0].geometry.location.lng;fmt=gd.results[0].formatted_address;
+  }
+  var streetMatch=fmt.match(/\d+\s+([\w\s]+(?:Road|Street|Lane|Avenue|Way|Place|Row|Terrace|Gardens|Grove|Hill|Parade|Rise|Walk|Mews|Close|Court|Yard|Passage|Crescent|Drive|Broadway|High\s+Street)[\w\s]*?)(?:,|\s+London)/i);
+  var streetName=streetMatch?streetMatch[1].trim():'unknown street';
+
+  var pr2=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':GK,'X-Goog-FieldMask':'places.displayName,places.types,places.rating,places.userRatingCount'},body:JSON.stringify({locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:400.0}},maxResultCount:20})});
+  var pd=await pr2.json();var pl400=(pd.places||[]).map(function(p){return{name:(p.displayName||{}).text||'',types:p.types||['establishment'],user_ratings_total:p.userRatingCount||0};});
+  var totalRev400=pl400.reduce(function(s,p){return s+(p.user_ratings_total||0);},0);
+
+  var pl100=[];
   try{
-    var res=await fetch(SUPABASE_URL+'/functions/v1/score-macro',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},
-      body:JSON.stringify({postcode:pc})
+    var sr=await fetch('https://places.googleapis.com/v1/places:searchNearby',{method:'POST',headers:{'Content-Type':'application/json','X-Goog-Api-Key':GK,'X-Goog-FieldMask':'places.displayName,places.types,places.userRatingCount'},body:JSON.stringify({locationRestriction:{circle:{center:{latitude:lat,longitude:lng},radius:100.0}},maxResultCount:20})});
+    var sd=await sr.json();
+    pl100=(sd.places||[]).map(function(p){return{name:(p.displayName||{}).text||'',types:p.types||['establishment'],user_ratings_total:p.userRatingCount||0};});
+  }catch(e){}
+  var totalRev100=pl100.reduce(function(s,p){return s+(p.user_ratings_total||0);},0);
+
+  var pv=pl400.filter(function(p){return cv2(p.types,p.name)==='pos';}).sort(function(a,b){return(b.user_ratings_total||0)-(a.user_ratings_total||0);}).slice(0,8).map(function(p){return p.name+' ('+(p.user_ratings_total||0)+')';});
+  var nv=pl400.filter(function(p){return cv2(p.types,p.name)==='neg';}).map(function(p){return p.name;});
+  var prompt='Score this London location for Scratch Golf (golf simulator, 30-34 professionals, 41% find us walking past).\nAddress: '+fmt+'\nStreet: '+streetName+'\nBusinesses ON this street ('+pl100.length+' found): '+(pl100.map(function(p){return p.name;}).join(', ')||'very few / none')+'\nPositive venues within 400m: '+(pv.join(', ')||'None')+'\nNegative venues within 400m: '+(nv.join(', ')||'None')+'\nKey question: is this STREET itself busy with passing trade, or is it a quiet side street near a busy area?\nScore 1-5: 1=hidden residential/industrial 2=quiet side street, low visibility 3=moderate passing trade 4=busy through-route/active evenings 5=exceptional footfall on the street itself\nReply ONLY: {"score":3,"reasoning":"2-3 sentences on what the street itself is like for a walk-past business"}';
+  var ar=await fetch(EDGE_FN,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+SUPABASE_ANON_KEY},body:JSON.stringify({prompt:prompt})});
+  var at=await ar.text();if(!at)throw new Error('Empty AI response');
+  var ad=JSON.parse(at);var ai=Math.min(5,Math.max(1,Math.round(parseFloat(ad.score||3))));
+  var vs=weightedVol(pl100,pl400),is=weightedIntent(pl100,pl400),ms=Math.min(5,Math.max(1,Math.round(vs*.30+is*.35+ai*.35)));
+
+  var microData=JSON.stringify({vol_score:vs,intent_score:is,ai_score:ai,radius:'weighted-100m70-400m30',places:pl100,places_400m:pl400,total_reviews:totalRev100,total_reviews_400m:totalRev400,pos_count:pl100.filter(function(p){return cv2(p.types,p.name)==='pos';}).length});
+
+  l.micro=ms;l.micro_reasoning=ad.reasoning||'';l.micro_data=microData;l.lat=lat;l.lng=lng;
+  l.combined=(l.macro!=null)?(l.macro*0.6+ms*0.4):ms;
+  return true;
+}
+
+// ───── BENCHMARK BREAKDOWN TABLES ─────
+var MACRO_BENCH={professionals:66,age_30_44:40,age_16_29:26,private_rent:39.8,social_rent:4.25,deprivation:4,abs_professionals:7100};
+var MACRO_WEIGHTS={professionals:.30,age_30_44:.12,age_16_29:.08,deprivation:.22,private_rent:.08,social_rent:.05,abs_professionals:.15};
+var MACRO_SIGNALS=[
+  {key:'professionals',label:'Professionals',sub:'Managerial/professional %',hi:true,suffix:'%',dp:1},
+  {key:'age_30_44',label:'Age 30–44',sub:'Primary age band %',hi:true,suffix:'%',dp:1},
+  {key:'age_16_29',label:'Age 16–29',sub:'Secondary age band %',hi:true,suffix:'%',dp:1},
+  {key:'deprivation',label:'Deprivation',sub:'Higher = less deprived (better)',hi:true,suffix:'',dp:1},
+  {key:'private_rent',label:'Private rent',sub:'Private rented tenure %',hi:true,suffix:'%',dp:1},
+  {key:'social_rent',label:'Social rent',sub:'Social rented % (lower=better)',hi:false,suffix:'%',dp:1},
+  {key:'abs_professionals',label:'Absolute professionals',sub:'Estimated headcount in catchment',hi:true,suffix:'',dp:0}
+];
+var MACRO_THR=[[1.10,1.00],[0.90,0.80],[0.75,0.55],[0.55,0.30],[0.00,0.05]];
+function macroSigScore(ratio){for(var i=0;i<MACRO_THR.length;i++)if(ratio>=MACRO_THR[i][0])return MACRO_THR[i][1];return 0.05;}
+function macroRatio(val,bench,hi){if(bench==null||val==null)return null;return hi?val/bench:bench/Math.max(val,0.1);}
+
+function renderMacroBreakdown(d){
+  var totalW=0;for(var k in MACRO_WEIGHTS)totalW+=MACRO_WEIGHTS[k];
+  var rows='<div class="bk-header"><div>Signal</div><div style="text-align:right">Site value</div><div style="text-align:right">Ratio</div><div style="text-align:right">Sig score</div><div style="text-align:right">Weight</div><div style="text-align:right">Contribution</div></div>';
+  var totalContrib=0;
+  MACRO_SIGNALS.forEach(function(sig){
+    var val=d[sig.key];
+    var ratio=macroRatio(val,MACRO_BENCH[sig.key],sig.hi);
+    var ss=ratio!=null?macroSigScore(ratio):null;
+    var w=MACRO_WEIGHTS[sig.key]/totalW;
+    var contrib=ss!=null?w*ss:0;
+    totalContrib+=contrib;
+    var ratioCls=ratio==null?'':ratio>=1.10?'r-hi':ratio>=0.90?'r-ok':ratio>=0.75?'r-mid':ratio>=0.55?'r-low':'r-bad';
+    var contribCls=contrib>=0.05?'contrib-pos':contrib>=0.02?'contrib-mid':'contrib-low';
+    rows+='<div class="bk-row"><div><div class="bk-signal">'+sig.label+'</div><div class="bk-sub">'+sig.sub+' · bench '+MACRO_BENCH[sig.key]+sig.suffix+' · '+(sig.hi?'↑ higher=better':'↓ lower=better')+'</div></div>'
+      +'<div class="bk-num">'+(val!=null?Number(val).toFixed(sig.dp)+sig.suffix:'—')+'</div>'
+      +'<div style="text-align:right"><span class="bk-ratio '+ratioCls+'">'+(ratio!=null?ratio.toFixed(2):'—')+'</span></div>'
+      +'<div class="bk-sig">'+(ss!=null?ss.toFixed(2):'—')+'</div>'
+      +'<div class="bk-weight">'+(w*100).toFixed(0)+'%</div>'
+      +'<div class="bk-contrib '+contribCls+'">'+contrib.toFixed(3)+'</div></div>';
+  });
+  rows+='<div class="bk-row total-row"><div><div class="bk-signal">Total (W)</div></div><div></div><div></div><div></div><div></div><div class="bk-contrib contrib-pos">'+totalContrib.toFixed(3)+'</div></div>';
+  document.getElementById('qs-macro-breakdown').innerHTML=rows;
+  document.getElementById('qs-macro-breakdown-wrap').style.display='block';
+  var scoreFromW=Math.min(5,Math.max(1,Math.round((1+totalContrib*4)*10)/10));
+  document.getElementById('qs-macro-eq').innerHTML='<div class="eq-line"><strong>Score</strong> = round(1 + W × 4) = round(1 + '+totalContrib.toFixed(3)+' × 4) = <span class="eq-result">'+scoreFromW+' / 5</span></div>';
+}
+
+function renderMicroBreakdown(microDataStr){
+  var d;try{d=JSON.parse(microDataStr||'{}');}catch(e){d={};}
+  var comps=[
+    {label:'Footfall volume',sub:'Review-count volume, 100m/400m blended 70/30',val:d.vol_score,weight:.30},
+    {label:'Venue intent',sub:'Leisure/premium mix vs negative venues nearby',val:d.intent_score,weight:.35},
+    {label:'Street character (AI)',sub:'Claude assessment of passing trade on this street',val:d.ai_score,weight:.35}
+  ];
+  var rows='<div class="bk-header"><div>Component</div><div style="text-align:right">Score</div><div></div><div></div><div style="text-align:right">Weight</div><div style="text-align:right">Contribution</div></div>';
+  var total=0;
+  comps.forEach(function(c){
+    var v=c.val!=null?c.val:0;
+    var contrib=v*c.weight;
+    total+=contrib;
+    var cls=v>=4?'r-hi':v>=3?'r-ok':v>=2?'r-mid':'r-bad';
+    rows+='<div class="bk-row"><div><div class="bk-signal">'+c.label+'</div><div class="bk-sub">'+c.sub+'</div></div>'
+      +'<div class="bk-num"><span class="bk-ratio '+cls+'">'+(c.val!=null?c.val:'—')+' / 5</span></div><div></div><div></div>'
+      +'<div class="bk-weight">'+(c.weight*100).toFixed(0)+'%</div>'
+      +'<div class="bk-contrib contrib-pos">'+contrib.toFixed(2)+'</div></div>';
+  });
+  var finalScore=Math.min(5,Math.max(1,Math.round(total)));
+  rows+='<div class="bk-row total-row"><div><div class="bk-signal">Total (weighted)</div></div><div></div><div></div><div></div><div></div><div class="bk-contrib contrib-pos">'+total.toFixed(2)+'</div></div>';
+  document.getElementById('qs-micro-breakdown').innerHTML=rows;
+  document.getElementById('qs-micro-breakdown-wrap').style.display='block';
+  var extra='<div class="eq-line"><strong>Score</strong> = round(0.30×'+(d.vol_score!=null?d.vol_score:'—')+' + 0.35×'+(d.intent_score!=null?d.intent_score:'—')+' + 0.35×'+(d.ai_score!=null?d.ai_score:'—')+') = <span class="eq-result">'+finalScore+' / 5</span></div>';
+  if(d.total_reviews_400m!=null)extra+='<div style="margin-top:6px">Total reviews within 400m: <strong>'+Number(d.total_reviews_400m).toLocaleString()+'</strong>'+(d.pos_count!=null?' · '+d.pos_count+' positive/premium venues nearby':'')+'</div>';
+  document.getElementById('qs-micro-eq').innerHTML=extra;
+}
+
+// ───── SCORE SEARCH ─────
+async function runQuickSearchScore(){
+  var addr=document.getElementById('qs-addr-input').value.trim();
+  var errEl=document.getElementById('qs-score-err'),btn=document.getElementById('qs-score-btn');
+  errEl.style.display='none';
+  if(!addr){errEl.textContent='Enter a postcode or address first.';errEl.style.display='block';return;}
+  btn.disabled=true;btn.textContent='Searching…';
+  document.getElementById('qs-score-result').style.display='none';
+  document.getElementById('qs-macro-breakdown-wrap').style.display='none';
+  document.getElementById('qs-micro-breakdown-wrap').style.display='none';
+  try{
+    var l={addr:addr,fullAddr:addr,postcode:/^[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}$/i.test(addr)?addr:''};
+    var ok=await scoreOne(l);
+    if(!ok){errEl.textContent=l.macro_reasoning||'Could not score this address.';errEl.style.display='block';btn.disabled=false;btn.textContent='Search';return;}
+    qsLastListing=l;
+
+    document.getElementById('qs-macro-bubble').textContent=l.macro!=null?l.macro:'—';
+    document.getElementById('qs-macro-bubble').className=l.macro!=null?qsSc5(l.macro):'sn';
+    document.getElementById('qs-micro-bubble').textContent=l.micro!=null?l.micro:'—';
+    document.getElementById('qs-micro-bubble').className=l.micro!=null?qsSc5(l.micro):'sn';
+    document.getElementById('qs-combined-bubble').textContent=l.combined!=null?Number(l.combined).toFixed(1):'—';
+    document.getElementById('qs-macro-reasoning').textContent=l.macro_reasoning||'';
+    document.getElementById('qs-micro-reasoning').textContent=l.micro_reasoning||'';
+    document.getElementById('qs-score-result').style.display='block';
+
+    if(l.macro_data){
+      try{renderMacroBreakdown(JSON.parse(l.macro_data));}catch(e){}
+    }
+    if(l.micro_data){
+      try{renderMicroBreakdown(l.micro_data);}catch(e){}
+    }
+  }catch(e){
+    errEl.textContent=e.message;errEl.style.display='block';
+  }
+  btn.disabled=false;btn.textContent='Search';
+}
+
+// ---- Floorplan / bay planner — identical engine to the on-market platform's Quick Search ----
+var qsCv=document.getElementById('qs-pl-cv'),qsCtx=qsCv.getContext('2d'),qsPcw=document.getElementById('qs-pl-cw');
+var qsPpm=null,qsBays=[],qsSel=-1,qsDefRot=false,qsPlMode='normal',qsCalPts=[];
+var qsMpd=null,qsMouse={x:0,y:0,inside:false};
+var qsNextType='bay';
+var qsZoom=1,qsBaseDw=0,qsBaseDh=0;
+var qsPlImg=null,qsFloorplanFile=null;
+
+var _pdfjsLibRef=null;
+function loadPdfJs(){
+  return new Promise(function(res){
+    if(window.pdfjsLib){_pdfjsLibRef=window.pdfjsLib;return res();}
+    var s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    s.onload=function(){
+      pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      _pdfjsLibRef=pdfjsLib;res();
+    };
+    s.onerror=function(){res();};
+    document.head.appendChild(s);
+  });
+}
+async function qsPdfFirstPageToImg(file){
+  await loadPdfJs();
+  if(!_pdfjsLibRef)throw new Error('PDF library failed to load');
+  var ab=await file.arrayBuffer();
+  var pdf=await _pdfjsLibRef.getDocument({data:ab}).promise;
+  var pg=await pdf.getPage(1);
+  var vp=pg.getViewport({scale:2.5});
+  var c=document.createElement('canvas');
+  c.width=vp.width;c.height=vp.height;
+  await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
+  var img=new Image();
+  img.src=c.toDataURL('image/jpeg',0.95);
+  return new Promise(function(res){img.onload=function(){res(img);};});
+}
+async function qsHandleFloorplanUpload(fileInput){
+  if(!fileInput.files||!fileInput.files[0])return;
+  var file=fileInput.files[0];
+  qsFloorplanFile=file;
+  document.getElementById('qs-floorplan-filename').textContent=file.name;
+  document.getElementById('qs-pl-stl').textContent='Loading floorplan…';
+  try{
+    var img;
+    if(file.type==='application/pdf'||/\.pdf$/i.test(file.name))img=await qsPdfFirstPageToImg(file);
+    else img=await new Promise(function(resolve,reject){
+      var reader=new FileReader();
+      reader.onload=function(){var im=new Image();im.onload=function(){resolve(im);};im.onerror=reject;im.src=reader.result;};
+      reader.onerror=reject;
+      reader.readAsDataURL(file);
     });
-    var result=await res.json();
-    if(result.error)return null;
-    _pcCache[key]=result;
-    return result;
-  }catch(e){console.warn('score-macro call failed:',e);return null;}
+    qsPlLoadImage(img);
+  }catch(e){
+    console.warn('Floorplan load failed:',e);
+    document.getElementById('qs-pl-stl').textContent='Could not load that file.';
+    toast('Could not load floorplan: '+(e.message||'unknown error'));
+  }
+}
+function qsPlLoadImage(imgEl){
+  qsPlImg=imgEl;
+  qsPpm=null;qsBays=[];qsSel=-1;qsDefRot=false;qsPlMode='normal';qsCalPts=[];qsMpd=null;
+  var MAX=8000,nw=imgEl.naturalWidth,nh=imgEl.naturalHeight;
+  if(nw>MAX){nh=Math.round(nh*MAX/nw);nw=MAX;}
+  if(nh>MAX){nw=Math.round(nw*MAX/nh);nh=MAX;}
+  qsCv.width=nw;qsCv.height=nh;
+  var mxW=Math.max(300,qsPcw.clientWidth||700)-2,mxH=780,asp=nw/nh;
+  var dw=mxW,dh=dw/asp;if(dh>mxH){dh=mxH;dw=dh*asp;}
+  qsBaseDw=dw;qsBaseDh=dh;qsZoom=1;
+  qsCv.style.width=Math.round(dw)+'px';qsCv.style.height=Math.round(dh)+'px';
+  document.getElementById('qs-zlbl').textContent='100%';
+  document.getElementById('qs-pb-slbl').textContent='no scale';
+  document.getElementById('qs-pl-stl').textContent='Floorplan loaded. Set scale then place bays.';
+  document.getElementById('qs-scdlg').style.display='none';document.getElementById('qs-bay-summary').style.display='none';
+  qsPlUI();qsDraw();
 }
 
-var FULL_POSTCODE_RE=/[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}/i;
+function qsLw(){return Math.max(2,qsCv.width/500);}
+function qsDims(b){
+  if(b.type==='toilet')return{w:qsPpm*(b.r?S3_TD:S3_TW),h:qsPpm*(b.r?S3_TW:S3_TD)};
+  return{w:qsPpm*(b.r?S3_BD:S3_BW),h:qsPpm*(b.r?S3_BW:S3_BD)};
+}
+function qsHitB(px,py,b){var d=qsDims(b),dx=px-b.cx,dy=py-b.cy,c=Math.cos(-b.a),ss=Math.sin(-b.a);return Math.abs(dx*c-dy*ss)<=d.w/2&&Math.abs(dx*ss+dy*c)<=d.h/2;}
+function qsRhP(b){var h=qsDims(b).h,d=h/2+Math.max(qsLw()*12,qsCv.height*.04);return{x:b.cx+d*Math.sin(b.a),y:b.cy-d*Math.cos(b.a),r:Math.max(qsLw()*6,qsCv.width/130)};}
+function qsHitRH(px,py,b){var h=qsRhP(b);return Math.hypot(px-h.x,py-h.y)<=h.r*1.8;}
+function qsTopB(x,y){for(var i=qsBays.length-1;i>=0;i--)if(qsHitB(x,y,qsBays[i]))return i;return -1;}
+function qsNdeg(a){var d=a*180/Math.PI;d=((d%360)+360)%360;return d>180?d-360:d;}
+function qsBayCount(){return qsBays.filter(function(b){return b.type!=='toilet';}).length;}
+function qsToiCount(){return qsBays.filter(function(b){return b.type==='toilet';}).length;}
 
-async function qsRunScore(){
-  var addr=document.getElementById('qs-address').value.trim();
-  if(!addr){toast('Enter an address first');return;}
-  var m=addr.match(FULL_POSTCODE_RE);
-  if(!m){toast('Could not find a full postcode in that address (e.g. SW4 7AA)');return;}
-  var resultEl=document.getElementById('qs-score-result');
-  resultEl.style.display='block';
-  resultEl.textContent='Scoring…';
-  var result=await scoreMacroRemote(m[0]);
-  if(!result){resultEl.textContent='Could not score this postcode.';qsScoreResult=null;return;}
-  qsScoreResult=result;
-  resultEl.innerHTML='Macro score: <strong>'+Number(result.score).toFixed(1)+' / 5</strong>';
+function qsDraw(){
+  qsCtx.clearRect(0,0,qsCv.width,qsCv.height);
+  if(qsPlImg){
+    qsCtx.drawImage(qsPlImg,0,0,qsCv.width,qsCv.height);
+  }else{
+    qsCtx.fillStyle='#fbfbf9';qsCtx.fillRect(0,0,qsCv.width,qsCv.height);
+    qsCtx.strokeStyle='#eceae3';qsCtx.lineWidth=1;
+    var gs=Math.max(20,qsCv.width/50);
+    for(var gx=0;gx<qsCv.width;gx+=gs){qsCtx.beginPath();qsCtx.moveTo(gx,0);qsCtx.lineTo(gx,qsCv.height);qsCtx.stroke();}
+    for(var gy=0;gy<qsCv.height;gy+=gs){qsCtx.beginPath();qsCtx.moveTo(0,gy);qsCtx.lineTo(qsCv.width,gy);qsCtx.stroke();}
+  }
+  if(qsCalPts.length>0){
+    qsCtx.save();qsCtx.strokeStyle='#EF9F27';qsCtx.lineWidth=qsLw()*1.5;qsCtx.setLineDash([8,5]);
+    var p0=qsCalPts[0],p1=qsCalPts[1]||(qsPlMode==='calib'?qsMouse:null);
+    if(p1){qsCtx.beginPath();qsCtx.moveTo(p0.x,p0.y);qsCtx.lineTo(p1.x,p1.y);qsCtx.stroke();}
+    qsCalPts.forEach(function(p){qsCtx.beginPath();qsCtx.arc(p.x,p.y,qsLw()*4,0,Math.PI*2);qsCtx.fillStyle='#EF9F27';qsCtx.fill();});
+    qsCtx.setLineDash([]);qsCtx.restore();
+  }
+  qsBays.forEach(function(b,i){
+    var d=qsDims(b),s=(i===qsSel),Lw=qsLw(),isBay=(b.type!=='toilet');
+    qsCtx.save();qsCtx.translate(b.cx,b.cy);qsCtx.rotate(b.a);
+    qsCtx.fillStyle=s?(isBay?'rgba(192,221,151,.3)':'rgba(182,220,240,.35)'):(isBay?'rgba(99,153,34,.22)':'rgba(24,95,165,.18)');
+    qsCtx.fillRect(-d.w/2,-d.h/2,d.w,d.h);
+    qsCtx.strokeStyle=s?(isBay?'#C0DD97':'#7AC3E8'):(isBay?'#639922':'#185FA5');
+    qsCtx.lineWidth=s?Lw*2.5:Lw*1.5;qsCtx.strokeRect(-d.w/2,-d.h/2,d.w,d.h);
+    if(isBay){
+      var bn=0;for(var j=0;j<i;j++)if(qsBays[j].type!=='toilet')bn++;
+      var fs=Math.max(14,Math.min(d.w/4,d.h/3,60));
+      qsCtx.fillStyle=s?'#EAF3DE':'#27500A';qsCtx.font='600 '+fs+'px sans-serif';
+      qsCtx.textAlign='center';qsCtx.textBaseline='middle';qsCtx.fillText(bn+1,0,0);
+    }else{
+      var fs2=Math.max(10,Math.min(d.w*.6,d.h*.85,36));
+      qsCtx.font=fs2+'px sans-serif';qsCtx.textAlign='center';qsCtx.textBaseline='middle';qsCtx.fillText('🚹',0,0);
+    }
+    qsCtx.restore();
+    if(s){
+      var rh=qsRhP(b),tcx=b.cx+(d.h/2)*Math.sin(b.a),tcy=b.cy-(d.h/2)*Math.cos(b.a);
+      qsCtx.save();qsCtx.strokeStyle='rgba(192,221,151,.55)';qsCtx.lineWidth=qsLw();qsCtx.setLineDash([5,4]);
+      qsCtx.beginPath();qsCtx.moveTo(tcx,tcy);qsCtx.lineTo(rh.x,rh.y);qsCtx.stroke();qsCtx.setLineDash([]);
+      qsCtx.beginPath();qsCtx.arc(rh.x,rh.y,rh.r,0,Math.PI*2);
+      qsCtx.fillStyle=isBay?'#3B6D11':'#185FA5';qsCtx.fill();
+      qsCtx.strokeStyle=isBay?'#C0DD97':'#7AC3E8';qsCtx.lineWidth=qsLw()*1.5;qsCtx.stroke();
+      qsCtx.fillStyle='#EAF3DE';qsCtx.font='600 '+Math.max(10,rh.r*1.1)+'px sans-serif';
+      qsCtx.textAlign='center';qsCtx.textBaseline='middle';qsCtx.fillText('↻',rh.x,rh.y+rh.r*.05);
+      qsCtx.restore();
+    }
+  });
+  if(qsPlMode==='normal'&&qsPpm&&qsMouse.inside&&qsTopB(qsMouse.x,qsMouse.y)===-1&&!(qsSel!==-1&&qsHitRH(qsMouse.x,qsMouse.y,qsBays[qsSel]))){
+    var gw,gh;
+    if(qsNextType==='toilet'){gw=qsPpm*(qsDefRot?S3_TD:S3_TW);gh=qsPpm*(qsDefRot?S3_TW:S3_TD);}
+    else{gw=qsPpm*(qsDefRot?S3_BD:S3_BW);gh=qsPpm*(qsDefRot?S3_BW:S3_BD);}
+    qsCtx.save();
+    qsCtx.fillStyle=qsNextType==='toilet'?'rgba(24,95,165,.1)':'rgba(99,153,34,.1)';
+    qsCtx.fillRect(qsMouse.x-gw/2,qsMouse.y-gh/2,gw,gh);
+    qsCtx.strokeStyle=qsNextType==='toilet'?'rgba(24,95,165,.45)':'rgba(99,153,34,.45)';
+    qsCtx.lineWidth=qsLw();qsCtx.setLineDash([8,5]);
+    qsCtx.strokeRect(qsMouse.x-gw/2,qsMouse.y-gh/2,gw,gh);qsCtx.setLineDash([]);qsCtx.restore();
+  }
 }
 
-function qsHandleFloorplanUpload(fileInput){
-  qsFloorplanFile=(fileInput.files&&fileInput.files[0])?fileInput.files[0]:null;
-  document.getElementById('qs-floorplan-name').textContent=qsFloorplanFile?qsFloorplanFile.name:'';
+function qsPlUI(){
+  var nb=qsBayCount(),nt=qsToiCount(),s=qsSel!==-1&&qsSel<qsBays.length;
+  document.getElementById('qs-pb-blbl').textContent=nb+(nb===1?' bay':' bays')+(nt>0?' · '+nt+(nt===1?' toilet':' toilets'):'');
+  document.getElementById('qs-pb-flip').disabled=!s;document.getElementById('qs-pb-rst').disabled=!s;document.getElementById('qs-pb-del').disabled=!s;
+  document.getElementById('qs-ang').disabled=!s;document.getElementById('qs-ang').value=s?Math.round(qsNdeg(qsBays[qsSel].a)):'';
+  document.getElementById('qs-pb-cal').className='pb'+(qsPlMode==='calib'?' aa':'');
+  document.getElementById('qs-pb-place').className='pb'+(qsPlMode==='normal'&&qsNextType==='bay'?' ag':'');
+  document.getElementById('qs-pb-toilet').className='pb at'+(qsPlMode==='normal'&&qsNextType==='toilet'?' sel':'');
+  var bs=document.getElementById('qs-bay-summary');
+  if(nb>0||nt>0){
+    bs.style.display='flex';
+    bs.innerHTML=(nb>0?'<span class="bay-chip green">'+nb+(nb===1?' bay':' bays')+'</span>':'')
+               +(nt>0?'<span class="bay-chip blue">'+nt+(nt===1?' toilet':' toilets')+'</span>':'');
+  }else{bs.style.display='none';}
+  qsUpdateCPB();
+}
+function qsUpdateCPB(){
+  var nb=qsBayCount();
+  var wrap=document.getElementById('qs-cost-wrap');
+  var rent=parseFloat(document.getElementById('qs-rent-input').value);
+  if(nb>0&&rent){
+    wrap.style.display='block';
+    document.getElementById('qs-cpb').textContent='£'+Math.round(rent/nb).toLocaleString('en-GB')+' p.a.';
+    document.getElementById('qs-cpb-sub').textContent='£'+Number(rent).toLocaleString('en-GB')+' rent ÷ '+nb+' '+(nb===1?'bay':'bays');
+  }else{
+    wrap.style.display='none';
+  }
+}
+function qsPlReset(){
+  qsPpm=null;qsBays=[];qsSel=-1;qsDefRot=false;qsPlMode='normal';qsNextType='bay';qsCalPts=[];qsMpd=null;
+  qsPlImg=null;qsFloorplanFile=null;
+  var fnEl=document.getElementById('qs-floorplan-filename');if(fnEl)fnEl.textContent='';
+  var fileEl=document.getElementById('qs-floorplan-file');if(fileEl)fileEl.value='';
+  qsCv.width=1000;qsCv.height=700;
+  document.getElementById('qs-pb-slbl').textContent='no scale';document.getElementById('qs-pb-blbl').textContent='0 bays';
+  document.getElementById('qs-pl-stl').textContent='No floorplan image needed — set a scale against the blank grid, then place bays.';
+  document.getElementById('qs-scdlg').style.display='none';document.getElementById('qs-bay-summary').style.display='none';
+  document.getElementById('qs-cost-wrap').style.display='none';document.getElementById('qs-rent-input').value='';
+  qsZoom=1;qsBaseDw=Math.max(300,qsPcw.clientWidth||700)-2;qsBaseDh=qsBaseDw*(700/1000);
+  qsCv.style.width=Math.round(qsBaseDw)+'px';qsCv.style.height=Math.round(qsBaseDh)+'px';
+  document.getElementById('qs-zlbl').textContent='100%';
+  qsDraw();
+}
+document.getElementById('qs-pb-cal').addEventListener('click',function(){
+  qsPlMode='calib';qsCalPts=[];qsSel=-1;qsPlUI();
+  document.getElementById('qs-pl-stl').textContent='Click two points with a known distance.';qsDraw();
+});
+document.getElementById('qs-sc-ok').addEventListener('click',function(){
+  var d=parseFloat(document.getElementById('qs-scinp').value);if(!d||d<=0)return;
+  if(qsCalPts.length<2){alert('Click two points on the grid first.');return;}
+  var dx=qsCalPts[1].x-qsCalPts[0].x,dy=qsCalPts[1].y-qsCalPts[0].y;
+  qsPpm=Math.hypot(dx,dy)/d;
+  document.getElementById('qs-pb-slbl').textContent='1m='+qsPpm.toFixed(1)+'px';
+  document.getElementById('qs-scdlg').style.display='none';qsCalPts=[];qsPlMode='normal';
+  document.getElementById('qs-pl-stl').textContent='Scale set. Click to place bays.';qsPlUI();qsDraw();
+});
+document.getElementById('qs-sc-cx').addEventListener('click',function(){document.getElementById('qs-scdlg').style.display='none';qsCalPts=[];qsPlMode='normal';qsPlUI();qsDraw();});
+document.getElementById('qs-pb-place').addEventListener('click',function(){qsNextType='bay';qsPlMode='normal';qsPlUI();qsDraw();});
+document.getElementById('qs-pb-toilet').addEventListener('click',function(){qsNextType='toilet';qsPlMode='normal';qsPlUI();qsDraw();});
+document.getElementById('qs-pb-flip').addEventListener('click',function(){if(qsSel!==-1){qsBays[qsSel].r=!qsBays[qsSel].r;qsPlUI();qsDraw();}});
+document.getElementById('qs-pb-rst').addEventListener('click',function(){if(qsSel!==-1){qsBays[qsSel].a=0;qsPlUI();qsDraw();}});
+document.getElementById('qs-pb-del').addEventListener('click',function(){if(qsSel!==-1){qsBays.splice(qsSel,1);qsSel=-1;qsPlUI();qsDraw();}});
+document.getElementById('qs-pb-ori').addEventListener('click',function(){qsDefRot=!qsDefRot;this.textContent='New: '+(qsDefRot?'landscape':'portrait');qsDraw();});
+document.getElementById('qs-pb-undo').addEventListener('click',function(){if(qsBays.length){qsBays.pop();if(qsSel>=qsBays.length)qsSel=-1;qsPlUI();qsDraw();}});
+document.getElementById('qs-pb-clear').addEventListener('click',function(){qsBays=[];qsSel=-1;qsPlUI();qsDraw();});
+function qsApplyZoom(){
+  if(!qsBaseDw)return;
+  qsZoom=Math.max(0.25,Math.min(4,qsZoom));
+  qsCv.style.width=Math.round(qsBaseDw*qsZoom)+'px';
+  qsCv.style.height=Math.round(qsBaseDh*qsZoom)+'px';
+  document.getElementById('qs-zlbl').textContent=Math.round(qsZoom*100)+'%';
+}
+document.getElementById('qs-pb-zin').addEventListener('click',function(){qsZoom*=1.25;qsApplyZoom();});
+document.getElementById('qs-pb-zout').addEventListener('click',function(){qsZoom/=1.25;qsApplyZoom();});
+document.getElementById('qs-pb-zrst').addEventListener('click',function(){qsZoom=1;qsApplyZoom();});
+document.getElementById('qs-ang').addEventListener('change',function(){if(qsSel===-1)return;var d=parseFloat(this.value);if(!isNaN(d)){qsBays[qsSel].a=d*Math.PI/180;qsDraw();}});
+
+function qsEc(e){var r=qsCv.getBoundingClientRect();return{x:(e.clientX-r.left)*(qsCv.width/r.width),y:(e.clientY-r.top)*(qsCv.height/r.height)};}
+qsCv.addEventListener('mousedown',function(e){
+  var p=qsEc(e),type='place',bi=-1;
+  if(qsPlMode==='calib')type='calib';
+  else if(qsSel!==-1&&qsHitRH(p.x,p.y,qsBays[qsSel])){type='rot';bi=qsSel;}
+  else{bi=qsTopB(p.x,p.y);type=bi!==-1?'move':'place';}
+  qsMpd={cx:e.clientX,cy:e.clientY,sx:p.x,sy:p.y,type:type,bi:bi,ox:bi!==-1?qsBays[bi].cx:0,oy:bi!==-1?qsBays[bi].cy:0,oa:bi!==-1?qsBays[bi].a:0,sma:bi!==-1?Math.atan2(p.y-qsBays[bi].cy,p.x-qsBays[bi].cx):0,moved:false};
+  e.preventDefault();
+});
+window.addEventListener('mousemove',function(e){
+  var ov=document.getElementById('overlay-qs'),fp=document.getElementById('qs-floorplan-panel');
+  if(!ov||ov.style.display==='none'||!fp||fp.style.display==='none')return;
+  var r=qsCv.getBoundingClientRect();
+  qsMouse.inside=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
+  var c=qsEc(e);qsMouse.x=c.x;qsMouse.y=c.y;
+  if(qsMpd){
+    if(!qsMpd.moved&&Math.hypot(e.clientX-qsMpd.cx,e.clientY-qsMpd.cy)>4)qsMpd.moved=true;
+    if(qsMpd.moved){
+      if(qsMpd.type==='move'&&qsMpd.bi!==-1){qsBays[qsMpd.bi].cx=qsMpd.ox+(c.x-qsMpd.sx);qsBays[qsMpd.bi].cy=qsMpd.oy+(c.y-qsMpd.sy);qsCv.style.cursor='grabbing';}
+      else if(qsMpd.type==='rot'&&qsMpd.bi!==-1){var na=qsMpd.oa+(Math.atan2(c.y-qsBays[qsMpd.bi].cy,c.x-qsBays[qsMpd.bi].cx)-qsMpd.sma);if(e.shiftKey){var sn=5*Math.PI/180;na=Math.round(na/sn)*sn;}qsBays[qsMpd.bi].a=na;document.getElementById('qs-ang').value=Math.round(qsNdeg(qsBays[qsMpd.bi].a));qsCv.style.cursor='grabbing';}
+    }
+  }else{
+    if(qsSel!==-1&&qsSel<qsBays.length&&qsHitRH(qsMouse.x,qsMouse.y,qsBays[qsSel]))qsCv.style.cursor='grab';
+    else if(qsTopB(qsMouse.x,qsMouse.y)!==-1)qsCv.style.cursor='grab';
+    else qsCv.style.cursor='crosshair';
+  }
+  qsDraw();
+});
+window.addEventListener('mouseup',function(e){
+  if(!qsMpd)return;var c=qsEc(e),onC=(e.target===qsCv);
+  if(qsMpd.type==='calib'&&qsMouse.inside){
+    qsCalPts.push({x:qsMpd.sx,y:qsMpd.sy});
+    if(qsCalPts.length===2){document.getElementById('qs-scinp').value='';document.getElementById('qs-scdlg').style.display='block';setTimeout(function(){document.getElementById('qs-scinp').focus();},50);document.getElementById('qs-pl-stl').textContent='Enter the distance between the two points.';}
+    else{document.getElementById('qs-pl-stl').textContent='Good - now click a second point.';}
+  }else if(!qsMpd.moved&&onC){
+    if(qsMpd.type==='move'&&qsMpd.bi!==-1)qsSel=qsSel===qsMpd.bi?-1:qsMpd.bi;
+    else if(qsMpd.type==='place'){qsSel=-1;if(qsPpm)qsBays.push({type:qsNextType,cx:c.x,cy:c.y,r:qsDefRot,a:0});else document.getElementById('qs-pl-stl').textContent='Set scale first.';}
+  }
+  qsPlUI();qsMpd=null;qsCv.style.cursor='crosshair';qsDraw();
+});
+
+var qsInited=false;
+function initQuickSearch(){
+  if(!qsInited){qsPlReset();qsSetMode('score');qsInited=true;}
 }
 
+// ───── SUBMIT TO PIPELINE ─────
 async function qsSubmit(targetStatus){
-  var addr=document.getElementById('qs-address').value.trim();
+  var addr=document.getElementById('qs-addr-input').value.trim();
   if(!addr){toast('Enter an address first');return;}
   var notes=document.getElementById('qs-notes').value.trim();
+  var l=qsLastListing||{};
   var payload={
     address:addr,
     notes:notes||null,
     source:'quick_search',
     status:targetStatus
   };
-  if(qsScoreResult){
-    payload.macro_score_v2=Math.round(qsScoreResult.score);
-    payload.macro_score_v2_reasoning=qsScoreResult.reasoning||null;
-    payload.macro_score_data=JSON.stringify(qsScoreResult.data||{});
+  if(l.macro!=null){
+    payload.macro_score_v2=Math.round(l.macro);
+    payload.macro_score_v2_reasoning=l.macro_reasoning||null;
+    payload.macro_score_data=l.macro_data||null;
+  }
+  if(l.micro!=null){
+    payload.micro_score_v2=l.micro;
+    payload.micro_score_v2_reasoning=l.micro_reasoning||null;
+    payload.micro_score_data=l.micro_data||null;
+  }
+  if(qsBays.length){
+    payload.bay_layout={bays:qsBays,ppm:qsPpm};
+    payload.expected_bays=qsBayCount();
   }
   try{
     var res=await db.from('inhouse_sites').insert(payload).select();
@@ -654,12 +1254,10 @@ async function qsSubmit(targetStatus){
       }
     }
     toast('✓ Added to '+STAGE_LABELS[targetStatus]);
-    document.getElementById('qs-address').value='';
+    document.getElementById('qs-addr-input').value='';
     document.getElementById('qs-notes').value='';
-    document.getElementById('qs-floorplan-input').value='';
-    document.getElementById('qs-floorplan-name').textContent='';
     document.getElementById('qs-score-result').style.display='none';
-    qsFloorplanFile=null;qsScoreResult=null;
+    qsLastListing=null;qsPlReset();
     await loadSites();
     switchStageView(targetStatus);
   }catch(e){
